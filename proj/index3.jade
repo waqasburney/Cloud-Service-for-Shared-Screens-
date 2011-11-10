@@ -1,0 +1,104 @@
+doctype 5
+head
+		meta(name="viewport",content="initial-scale=1.0, user-scalable=no")
+		style(type="text/css")
+			html { height: 100% }
+			body { height: 100%; margin: 0; padding: 0 }
+			#map_div { height: 100% }
+
+		link(href='/stylesheets/style.css', rel='stylesheet')
+		link(media="screen", href="/jquerymsg/jquery.msg.css", rel="stylesheet", type="text/css")
+		script(src='http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js')
+		script(src="http://maps.googleapis.com/maps/api/js?sensor=true")
+		script(src="http://cdn.jquerytools.org/1.2.6/full/jquery.tools.min.js")
+		script(src='/socket.io/socket.io.js')
+		script(src='/jquerycenter/jquery.center.js')
+		script(src='/jquerymsg/jquery.msg.js')
+		script(src='/etherpad/etherpad.js')
+		script
+			var map;
+			var screenMarkers=[];
+			function initialize() {
+				
+				//Initialise a map which is centered around UQ
+				var latlng = new google.maps.LatLng(-27.499662, 153.015046);
+				var myOptions = {
+					zoom: 18,
+					center: latlng,
+					mapTypeId: google.maps.MapTypeId.ROADMAP
+				};
+				map = new google.maps.Map(document.getElementById("map_div"),
+				myOptions);
+				
+				var markers=[]; 
+				for(var i in screenMarkers){
+					var mylatlng = new google.maps.LatLng(screenMarkers[i].Lat, screenMarkers[i].Long);
+
+					markers.push(new google.maps.Marker({
+								position: mylatlng,
+								map: map,
+								title: screenMarkers[i].Location
+					}));
+				}
+
+				//For each location place a marker on the map
+				for(var i in markers){
+					(function () {
+						var contentString = '<div id="content">'+
+							'<div id="bodyContent">'+
+							'<p><a href="http://localhost:8080/screen/'+screenMarkers[i].ScreenID+'">'+
+							screenMarkers[i].Location+'</a> '+
+							'</div></div>';
+					
+						var infowindow = new google.maps.InfoWindow({
+								content: contentString,
+								maxWidth: 200
+						});
+						var marker = markers[i];
+						google.maps.event.addListener(marker, 'click', function() {
+							infowindow.open(map,marker);
+						});
+					})();
+				}
+				//AutoCenter
+				//  Create a new viewpoint bound
+				var bounds = new google.maps.LatLngBounds();
+				$.each(markers, function (index, marker) {
+				bounds.extend(marker.position);
+				});
+				//  Fit these bounds to the map
+				map.fitBounds(bounds);
+			}
+			
+		
+			function AddMarker(ScreenID,Location,Lat,Long){
+				(function(){
+					screenMarkers.push({ScreenID:ScreenID,Location:Location,Lat:Lat,Long:Long});
+				})();
+			}
+
+	body(onload="initialize()")
+		#chat
+			#MainContainer
+				#header
+					h1 Cloud Service for Collaborative Displays
+				#menu
+				#content
+					p List of Available Screens:
+					ul#screens
+						- each Screen in screens
+							li
+								a(href='/screen/'+'#{Screen.ScreenID}') #{Screen.Location}
+								p This Screen has been accessed #{Screen.ScreenCount} times
+								script 
+									AddMarker('#{Screen.ScreenID}','#{Screen.Location}','#{Screen.Lat}','#{Screen.Long}');
+								ul#usernames
+									p Screen Users:
+									- each user in usernames
+										if(Screen.ScreenID==user.room)
+											li 
+												p #{user.user}
+					
+					p Map of Available Screens:
+						#map_div(style="width:60%; height:60%")
+				#footer

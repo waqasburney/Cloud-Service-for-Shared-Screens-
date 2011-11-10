@@ -1,0 +1,236 @@
+doctype 5
+head
+	link(href='/stylesheets/style.css', rel='stylesheet')
+	script(src='http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js')
+	script(src='/socket.io/socket.io.js')
+	script(src='https://www.google.com/jsapi')
+	script
+		var OriginalDiv;
+
+		// Load the Visualization API and the piechart package.
+		google.load('visualization', '1.0', {'packages':['corechart']});
+
+		$(document).ready(function(){
+			var socket = io.connect('/room');
+			socket.on('connect', function () {
+				socket.emit('join room',{quizid:'#{QuizId}',user:'#{User}'});
+			});
+			
+			socket.on('usernames', function (data) {
+				$('#Users').empty();
+				var usrs = data.usernames;
+				for (var i in usrs) {
+					if(usrs[i]!='Main Screen')
+						$('#Users').append($('<p>').text(usrs[i].user));
+				}
+			});
+
+			$('#clear-question').live('click', function() {
+				document.getElementById("MyQuestion").value = "";
+			});
+
+			$('#confirm-question').live('click', function() {
+				var question = $('#MyQuestion').val();
+				var content = '<p>Your question is:'+ question+'</p>'+
+				'<p>What kind of answers are you expecting?</p>'+
+				'<input id="choice1" type="radio" name="group1" value="mcq"> Multiple Choices<br>'+
+				'<input id="choice1" type="radio" name="group1" value="text" checked> Text<br>'+
+				'<input type="button" id="continue-question" value="Continue">'+
+				'<input type="button" id="cancel-question" value="Cancel">';
+				OriginalDiv=$('#conf-questions').clone(true);
+				$('#conf-questions').empty().append(content);				
+				$('#cancel-question').live('click', function() {
+					$('#conf-questions').empty().append(OriginalDiv.html());
+				});
+				$('#continue-question').click(function(e) {
+					var choice;
+					var radioButtons = document.getElementsByName('group1');
+					for (var x = 0; x < radioButtons.length; x ++) {
+						if (radioButtons[x].checked) {
+							choice = radioButtons[x].value;
+						}
+					}
+					if(choice =='text'){
+						var content = '<p>Your question is:'+ question+
+						'</br> Expecting text-based responses.</p>'+
+						'<input type="button" id="submit-text-question" value="Submit">'+
+						'<input type="button" id="cancel-question" value="Cancel">';
+						$('#conf-questions').empty().append(content);					
+						$('#submit-text-question').click(function(e) {
+							socket.emit('submitquestion',{question:question,numChoices:0});
+							//$('#currentquestion').append('Current Question: </br>'+question);
+						});
+					}
+					if(choice =='mcq'){
+						var content = '<p>Your question is:'+ question+
+							'</br> Expecting a multiple-choice based response.</p>'+
+							'<p>How many choices would you like?<select id="num-choices">'+
+							'<option value="2">2</option>'+
+							'<option value="3">3</option>'+
+							'<option value="4">4</option>'+
+							'<option value="5">5</option>'+
+							'</select></p>'+
+							'<input type="button" id="mcq-continue-question" value="Continue">'+
+							'<input type="button" id="cancel-question" value="Cancel">';
+						$('#conf-questions').empty().append(content);					
+						$('#mcq-continue-question').click(function(e) {
+							var numChoices = $('#num-choices').val();
+							content = '<p>Your question is:'+ question+
+								'</br> Expecting a multiple-choice based response.</p>'+
+								'<p>Please enter a description for each option:</p>';
+							$('#conf-questions').empty().append(content);
+							for (var i=0;i<numChoices;i++)
+							{
+								content ='Option '+(i+1)+': '+
+								'<input type="text" id="choice_'+i+'"></br>';
+								$('#conf-questions').append(content);
+							}
+							content = '<input type="button" id="mcq-text-confirm" value="Continue">'+
+							'<input type="button" id="cancel-question" value="Cancel">';
+							$('#conf-questions').append(content);
+							$('#mcq-text-confirm').click(function(e) {
+								var choices = [];
+								var content = '<p>Your question is:'+ question+
+									'</br> With the following choices:</p>';
+								for (var i=0;i<numChoices;i++)
+								{
+									choices[i]=$('#choice_'+i).val();
+									content += 'Option '+(i+1)+': '+ $('#choice_'+i).val();
+									content += '</br>';
+								}
+								content += '<input type="button" id="submit-mcq-question" value="Submit">'+
+								'<input type="button" id="cancel-question" value="Cancel">';
+								$('#conf-questions').empty().append(content);
+								$('#submit-mcq-question').click(function(e) {
+									socket.emit('submitquestion',{question:question,numChoices:numChoices,choices:choices});
+								});
+							});
+						});
+					}
+				});
+
+			});
+
+			socket.on('UpdateQuestionForClients',function(data){
+				$('#results-list').empty();
+				$('#chartContainer').empty();
+				$('#currentquestion').empty().append('Question: <b>'+data.question+'</b>'+
+										' </br>asked by, '+data.User);
+				if(data.numChoices>0){
+					var choices = data.choices;
+					var content = '<p><select id="ans-choices">';
+					for(var i in choices){
+						content += '<option value="'+choices[i]+'">'+choices[i]+'</option>';
+					}
+					content += '</select></p>';
+					$('#submit-answer').empty().append(content);
+				}
+				else{
+					$('#submit-answer').empty().append('<textarea id="answer-text" rows="5" cols="30">');
+				}
+				$('#submit-answer').append('<p><input type="button" id="ans-btn" value="Submit"></p>');
+				$('#ans-btn').click(function(e) {
+					var answer;
+					if(data.numChoices>0)	answer=$('#ans-choices').val();
+					else	answer=$('#answer-text').val();
+					socket.emit('submitanswer',{AnswerText:answer,QuestionID:data.QuestionID,
+												NumChoices:data.numChoices,Question:data.question,
+												choices:choices});
+				});				
+			});
+
+			socket.on('QuestionSubmitted', function (data) {
+				$('#chartContainer').empty();
+				$('#results-list').empty();
+				$('#conf-questions').empty().append(OriginalDiv.html());
+				socket.emit('UpdateCurrentClients',data);
+			});
+
+
+			socket.on('updateChoiceAnswers',function(data){
+				Answers=data.Answers;
+				choices=data.choices;
+				var AnswerCounts =[];
+				$('#chartContainer').empty();
+				$('#results-list').empty();
+				var User = '#{User}';
+				for(var i in Answers){
+					if(Answers[i].User == User){
+						$('#submit-answer').empty().append(Answers[i].AnswerText);
+					}
+				}
+				for(var i=0;i<choices.length;i++){
+					AnswerCounts.push({Answer:choices[i],Count:0});
+				}					
+				for(var i in Answers){
+					for(var k in AnswerCounts){
+						if(AnswerCounts[k].Answer==Answers[i].AnswerText){
+							AnswerCounts[k].Count = AnswerCounts[k].Count+1;
+						}
+					}
+				}
+
+				// Create the data table.
+				var data = new google.visualization.DataTable();
+				data.addColumn('string', 'Topping');
+				data.addColumn('number', 'Slices');
+				for(var i in AnswerCounts){
+					//$('#results-list').append('<p>'+AnswerCounts[i].Answer+'  '+AnswerCounts[i].Count+'</p>');
+					data.addRow([AnswerCounts[i].Answer, AnswerCounts[i].Count]);
+				}
+				// Set chart options
+				var options = {'title':data.Question,
+				'backgroundColor':'#E0FFFF',
+				'width':400,
+				'height':300};
+
+				// Instantiate and draw our chart, passing in some options.
+				var chart = new google.visualization.PieChart(document.getElementById('chartContainer'));
+				chart.draw(data, options);
+			});
+
+
+			socket.on('updateTextAnswers',function(data){
+				var Answers=data.Answers;
+				$('#results-list').empty();
+				$('#chartContainer').empty();
+				var User = '#{User}';
+				for(var i in Answers){
+					if(Answers[i].User == User){
+						$('#submit-answer').empty().append(Answers[i].AnswerText);					}
+				}
+				for (var i in Answers) {
+					$('#results-list').append('<div class="resultItem"><p>'+Answers[i].User+' says,</br><b>'+
+											Answers[i].AnswerText+'</b></p></div>');
+				}
+			});
+		});
+
+	body
+		table(border='1')
+			tr
+				td(style="background-color:#E0FFFF")
+					-if (!spVal)
+						//p	Welcome to the Quiz Plugin, #{User} 
+						#currentquestion
+							p	There is currently no question
+						p	My Response:
+						#submit-answer
+					-if (spVal)
+						//p	This is the Main Screen for Quiz: #{QuizId}
+						//p	Current Users are:
+						//	#Users
+						#currentquestion
+							p	There is currently no question
+					p	Results for the current question:
+						#results
+							#results-list
+							#chartContainer
+				-if (!spVal)
+					td(ALIGN="CENTER",style="background-color:#D3D3D3")
+							#conf-questions
+								p	Post new question?
+								textarea(id='MyQuestion',rows="5",cols="30")
+								p
+									input(type='button',value='Confirm Question')#confirm-question
+									input(type='button',value='Clear Question')#clear-question

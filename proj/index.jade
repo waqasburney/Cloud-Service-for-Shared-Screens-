@@ -1,0 +1,493 @@
+doctype 5
+head
+	link(href='/stylesheets/style.css', rel='stylesheet')
+	link(href="/stylesheets/scrollable-horizontal.css",type='text/css', rel="stylesheet" )
+	link(href="/stylesheets/scrollable-buttons.css",type='text/css', rel="stylesheet" )
+	link(media="screen", href="/jquerymsg/jquery.msg.css", rel="stylesheet", type="text/css")
+	script(src='http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js')
+	script(src="http://cdn.jquerytools.org/1.2.6/full/jquery.tools.min.js")
+	script(src='/socket.io/socket.io.js')
+	script(src='/jquerycenter/jquery.center.js')
+	script(src='/jquerymsg/jquery.msg.js')
+	script(src='/etherpad/etherpad.js')
+	script(src='/quiz/quiz.js')
+	script
+		$(document).ready(function(){
+			var allowed = false;
+			var socket = io.connect('/room');
+			//Socket Message invoked when client connects
+			socket.on('connect', function () {
+				//Send 'join room' message to server so that client can connect to a Room/Channel
+				socket.emit('join room',{room:'#{CollabSess}',user:'#{User}'}, function (set) {
+					if (!set) {
+						clear();
+					}
+				});
+			});
+
+			//Socket Message update list of usernames displayed on the client and shared display
+			socket.on('usernames', function (data) {
+				var AdminView='#{spVal}';
+				//Apply Highlighting logic to Shared Display only
+				if(AdminView=='true'){
+					var CurrentDocUsers=[];
+					var usrs = data.usernames;
+					//Find usernames that are already shown and highlighted
+					for(var i in usrs){
+						if ($('#usernames').find('#userDiv_'+usrs[i].user).find($('p')).css('font-weight')=='bold') {
+							CurrentDocUsers.push({user:usrs[i].user,exists:true});
+						}
+						else{
+							CurrentDocUsers.push({user:usrs[i].user,exists:false});
+						}
+					}
+					$('#usernames').empty();
+					//Append list of usernames with relevant highlighting
+					for (var i in CurrentDocUsers) {
+						var userDivContent;
+						if(CurrentDocUsers[i].exists)
+							userDivContent = '<div id="userDiv_'+CurrentDocUsers[i].user+'" style="padding-left:15px"><p><b>'+CurrentDocUsers[i].user+'</b></p></div>';
+						else
+							userDivContent = '<div id="userDiv_'+CurrentDocUsers[i].user+'" style="padding-left:15px"><p>'+CurrentDocUsers[i].user+'</p></div>';
+						$('#usernames').append(userDivContent);
+					}
+				}
+				else{
+					var usrs = data.usernames;
+					$('#usernames').empty();
+					//For normal clients simply append usernames
+					for(var i in usrs){
+						var userDivContent = '<div id="userDiv_'+usrs[i].user+'" style="padding-left:15px"><p>'+usrs[i].user+'</p></div>';
+						$('#usernames').append(userDivContent);
+					}
+				}
+
+			});
+
+			socket.on('announcement', function (data) {
+				//Not using this at the moment but its useful and might come in use later
+			});
+
+			
+			$('#doc-new').click(function(e) {
+				$.msg({ 
+					msgID : 3,
+					bgPath : '/images/', 
+					content: '<p>Please select a document type:</p>' +
+					'<p style="text-align: center"><input type="button" id="newEditor" value="Text Editor" style="height: 25px; width: 150px"></p>'+
+					'<p style="text-align: center"><input type="button" id="newQuiz" value="Quiz" style="height: 25px; width: 100px"></p>',
+					autoUnblock : false,
+					clickUnblock : true,
+					afterBlock : function()
+					{
+						var self = this;
+						//For New Plugins Just Copy-Paste this code and change the view type
+						$('#newEditor').click(function(e) {
+							//Plugin for Collaborative Editor
+							var newContent = '<p>Please select a name for the Collaborative Editor document:</p>' +
+							'<p>Document Name: <input type="text" name="Alias" id="docAlias"></p>' +
+							'<input type="button" id="setName" value="Create Document" style="height: 25px; width: 150px;">';
+							self.replace(newContent);
+							$('#setName').click(function(e) {
+								if($('#docAlias').val()!='')
+								{
+									//For each new plugin update the view paramter
+									socket.emit('checkAlias',{alias:$('#docAlias').val(),view:'pad'});
+								}
+							});								
+						});
+
+						$('#newQuiz').click(function(e) {
+							//Quiz Plugin
+							var newContent = '<p>Please select a name for the Quiz document:</p>' +
+							'<p>Document Name: <input type="text" name="Alias" id="docAlias"></p>' +
+							'<input type="button" id="setName" value="Create Document" style="height: 25px; width: 150px;">';
+							self.replace(newContent);
+							$('#setName').click(function(e) {
+								if($('#docAlias').val()!='')
+								{
+									socket.emit('checkAlias',{alias:$('#docAlias').val(),view:'quiz'});
+								}
+							});
+						});
+					}
+				});
+			});
+			
+			//Socket Message to add a document to the user interface
+			socket.on('addDocument', function(data) {
+				if(data.addFlag){
+					socket.emit('updateContentView',{alias:data.alias,
+													view:data.view});
+					$.msg( 'unblock', 1000, 3 );						
+				}
+				else{
+					$.msg( 'replace', '<p>This document name is already taken</p>' );
+				}
+			});
+			
+			//Socket Message to render message when user is already logged in
+			socket.on('userAleadyLoggedIn', function() {
+				$.msg({ 
+					bgPath : '/images/', 
+					content: '<p>This user is already logged in.</p>'+
+					'<p><a href="/logout">Return to screens page</p>',
+					autoUnblock : false,
+					clickUnblock : false
+				});					
+			});
+			
+			$('#share-view').change(function(e) {
+				if($('#share-view').is(':checked')){
+					socket.emit('shareView',{op:'Add'});
+				}
+				else
+				{
+					socket.emit('shareView',{op:'Delete'});					
+				}
+			});
+
+			$('#play-shared').click(function(e) {
+				socket.emit('ControlSharedDisplay',{action:'play'});
+			});
+			
+			socket.on('play', function() {
+				var AdminView='#{spVal}';
+				if(AdminView=='true'){
+					window.api = $("#scroller").data("scrollable");								
+					api.play();
+				}
+			});
+
+			$('#pause-shared').click(function(e) {
+				socket.emit('ControlSharedDisplay',{action:'pause'});
+			});
+
+			socket.on('pause', function() {
+				var AdminView='#{spVal}';
+				if(AdminView=='true'){
+					window.api = $("#scroller").data("scrollable");								
+					api.pause();
+				}
+			});
+
+			//Socket message to share a document on the shared display
+			socket.on('shareViewforAdmin', function(data) {
+				var AdminView='#{spVal}';
+				// provide scrollable API for the action buttons
+				window.api = $("#scroller").data("scrollable");
+				if(AdminView=='true'){
+					if(data.op=='Add'){
+						if ( !$('#ContentDiv_'+data.DocName).length ) {
+							//Stop Scrolling effect before adding a new document and move to start
+							api.stop();
+							api.begin(0);
+							//Add item as a div
+							$('#items').append('<div id="ContentDiv_'+data.DocName+'"></div>');
+							//Add the following code for each plugin
+							if(data.view =='pad'){
+								$('#ContentDiv_'+data.DocName).pad({'padId':data.DocName,'showControls':'false','noColors':'true','userName':'Main Screen','width':'1100',"height":'820'});						
+							}
+							else if(data.view =='quiz'){
+								$('#ContentDiv_'+data.DocName).quiz({'quizId':data.DocName,'userName':'Main Screen','width':'1100',"height":'820'});
+							}
+							else{
+								null;
+							}
+							api.play();
+						}
+					}
+					else{
+						if ( $('#ContentDiv_'+data.DocName).length ) {							
+							//Stop Scrolling effect before adding a new document and move to start
+							api.stop();
+							api.begin(0);							
+							$('#ContentDiv_'+data.DocName).remove();
+							if(api.getItems().size()>1){
+								api.play();
+							}
+						}
+					}
+				}
+				else{
+					//Check the share-view checkbox if this user is also using the same Doc
+					socket.emit('checkForCurrentDoc',data);
+				}
+			});
+
+			//Socket message to update checked value of Share Document checkbox
+			socket.on('markSharedAsChecked',function(data){
+				if(data.op=='Add'){
+					$('#share-view').attr('checked', true);
+				}
+				else{
+					$('#share-view').attr('checked', false);
+				}
+			});
+			
+			//The share document checkbox is initially disabled
+			//It is only enabled when a user selects a document
+			socket.on('enabledShareButton',function(){
+				$('#share-view').attr('disabled', false);
+			});
+
+			//Plug-in code for Collaborative Document Editor
+			socket.on('pad', function(data) {
+				var screenUser;
+				var AdminView='#{spVal}';
+				$('#content').empty();
+				if(AdminView=='true'){
+					screenUser='Main Screen';
+					$('#content').pad({'padId':data.name,'showControls':'false','noColors':'true','userName':screenUser,'width':'1100',"height":'820'});
+				}
+				else{
+					screenUser='#{User}';
+					$('#nav1').empty().append('You are currently working on: '+data.alias);
+					$('#content').pad({'padId':data.name,'showControls':'true','userName':screenUser,'width':'800',"height":'850'});
+				}
+			});
+
+			//Plug-in code for Quizzing Application
+			socket.on('quiz', function(data) {
+				var screenUser;
+				var AdminView='#{spVal}';
+				$('#content').empty();
+				if(AdminView=='true'){
+					screenUser='Main Screen';
+					$('#content').quiz({'quizId':data.name,'userName':screenUser,'width':'1100',"height":'820'});
+				}
+				else{
+					screenUser='#{User}';
+					$('#nav1').empty().append('You are currently working on: '+data.alias);
+					$('#content').quiz({'quizId':data.name,'userName':screenUser,'width':'800',"height":'850'});
+				}
+			});
+			
+			//Socket message received after the client sends the "join room" request to the server
+			socket.on('joined', function(data) {
+					//Show different displays for first and subsequent users
+					if(data.isFirstUser)
+					{
+						//Render Message box for users which are first to access a screen
+						$.msg({ 
+							msgID : 1,
+							bgPath : '/images/', 
+							content: '<p>Please select an option:</p>' +
+							'<p style="text-align: center"><input type="button" id="existingSession" value="Restore Session" style="height: 25px; width: 100px"></p>'+
+							'<p style="text-align: center"><input type="button" id="newSession" value="New Session" style="height: 25px; width: 100px"></p>',
+							autoUnblock : false,
+							clickUnblock : false,
+							afterBlock : function()
+							{
+								var self = this;
+								//Render button for accessing an existing session
+								$('#existingSession').click(function(e) {
+									var existingContent = '<p>Name: <input type="text" name="SessName" id="SessName"></p>' +
+									'<p>Password: <input type="password" name="password" id="password"></p>' +
+									'<input type="button" id="setPass" value="Load Session" style="height: 25px; width: 100px">';
+									self.replace(existingContent);
+									$('#setPass').click(function(e) {
+										if($('#SessName').val()!='' && $('#password').val()!='')
+										{
+											socket.emit('existingSession',{sess:$('#SessName').val(),
+														room:data.room,
+														pass:$('#password').val()});
+										}
+									});
+								});
+
+								//Render button for creating a new session
+								$('#newSession').click(function(e) {
+									var newContent = '<p>Name: <input type="text" name="SessName" id="SessName"></p>' +
+									'<p>Password: <input type="password" name="password" id="password"></p>' +
+									'<input type="button" id="setPass" value="Create Session" style="height: 25px; width: 100px;">';
+									self.replace(newContent);
+									$('#setPass').click(function(e) {
+										if($('#SessName').val()!='' && $('#password').val()!='')
+										{
+											socket.emit('newSession',{sess:$('#SessName').val(),
+														room:data.room,
+														pass:$('#password').val()});
+										}
+									});
+								});
+							}
+						});
+					}
+					else
+					{
+						//Render Message box for subsequent users
+						$.msg({ 
+							msgID : 2,
+							bgPath : '/images/', 
+							content: '<p>Password: ' +
+							'<input type="password" name="password" id="password"></p>' +
+							'<input type="button" id="enterPass" value="Enter Session" style="height: 25px; width: 100px">',
+							autoUnblock : false,
+							clickUnblock : false,
+							afterBlock : function()
+							{
+								var self = this;
+								$('#enterPass').click(function(e) {
+									if($('#password').val()===data.roomPass){
+										$.msg( 'unblock', 1000, 2 );
+										socket.emit('connectSession',{sess:data.roomSess,
+													room:data.room});
+									}
+								});
+							}
+						});
+					}
+			});
+			
+			//Socket message that adds UI elements for user and document lists
+			socket.on('retrieveSession', function(data) {
+				if(data.sessExists){
+					$('#sessionname').empty().append($('<p>').append($('<b>').text(data.sess)));
+					var sessDocs = data.docs;
+					$('#sessiondocslist').empty();
+					var AdminView='#{spVal}';
+					for (var i in sessDocs) {
+						if(AdminView!='true'){
+							//For normal users, create buttons for documents
+							var doc = '<p><input type="button" id="btn_'+sessDocs[i].DocName+'" value="'+sessDocs[i].DocAlias+'"></p></div>';
+							$('#sessiondocslist').append(doc);
+
+							(function(j) {
+								$("#btn_" + sessDocs[j].DocName).click(function() {
+									socket.emit('updateContentView',{view:sessDocs[j].DocType,DocName:sessDocs[j].DocName,alias:sessDocs[j].DocAlias});
+								});
+							})(i);							
+						}
+						else
+						{
+							//For admin users, create text labels for documents
+							var doc='<div id="divDoc_'+sessDocs[i].DocName+'"><p>'+sessDocs[i].DocAlias+'</p></div>';
+							$('#sessiondocslist').append(doc);
+						}
+					}
+					if(AdminView!='true'){
+						$.msg( 'unblock', 1000, 1 );
+					}
+				}
+			});
+
+			//Socket message to reset shared display, once all session users have logged out 
+			socket.on('clearSession',function(){
+				$('#content').empty();
+
+				var scrollerContents='<div id="scroller" class="scrollable"><div id="items"'+
+				'class="items">'+
+				'<div id="default_scrolldiv" style="height: 820px; width: 1100px"><p>'+
+				'Welcome to the Cloud Service for Collaborative Displays</p></div>'+
+				'</div></div>';
+				$('#content').append(scrollerContents);
+				// initialize scrollable together with the autoscroll plugin
+				var root = $("#scroller").scrollable({circular: true}).autoscroll({interval:4000,autoplay: true ,autopause: false});
+
+				// provide scrollable API for the action buttons
+				window.api = root.data("scrollable");			
+				$('.cloned').remove();
+				api.begin(0);
+				api.stop();
+				//For each document that is shown in the scroll view update the list of documents and users viewing the document
+				api.onSeek(function(){
+					var currentItem = this.getItems().eq(this.getIndex());
+					socket.emit('UpdateListsforAdmin',{divID:currentItem.attr('id')});
+				});
+				$('#sessionname').empty();
+				$('#sessiondocslist').empty();
+			});
+
+			//Socket message to render document and user lists when a document is loaded by the scroll view
+			socket.on('UpdateUserAndDocListsforAdm',function(data){
+				$('#usernames').css('font-weight','normal');					
+				var DocUsers = data.users;
+				$('#usernames').children().find($('p')).css('font-weight','normal');
+				$('#sessiondocslist').children().find($('p')).css('font-weight','normal');
+				for(var i in DocUsers){
+					$('#usernames').find('#userDiv_'+DocUsers[i]).find($('p')).css('font-weight','bold');					
+				}
+				$('#sessiondocslist').find('#divDoc_'+data.docName).find($('p')).css('font-weight','bold');					
+			});
+
+			var AdmView='#{spVal}';
+
+			//Change screen sizes according to shared displays or normal User Screens
+			if(AdmView=='true'){
+				$('#container').addClass('ServerContainer');
+				//Display screen URL
+				$('#currentURL').empty().append('Screen URL: '+document.URL);
+
+
+				//Render scroll view for shared display
+				var scrollerContents='<div id="scroller" class="scrollable"><div id="items"'+
+				'class="items">'+
+				'<div id="default_scrolldiv" style="height: 820px; width: 1100px"><p>'+
+				'Welcome to the Cloud Service for Collaborative Displays</p></div>'+
+				'</div></div>';
+				$('#content').append(scrollerContents);
+				// initialize scrollable together with the autoscroll plugin
+				var root = $("#scroller").scrollable({circular: true}).autoscroll({interval:4000,autoplay: true ,autopause: false});
+				// provide scrollable API for the action buttons
+				window.api = root.data("scrollable");			
+				$('.cloned').remove();
+				api.begin(0);
+				api.stop();
+				api.onSeek(function(){
+					var currentItem = this.getItems().eq(this.getIndex());
+					socket.emit('UpdateListsforAdmin',{divID:currentItem.attr('id')});
+				});
+			}
+			else{
+				$('#container').addClass('UserContainer');
+			}
+
+		});
+		
+		// dom manipulation
+		$(function () {
+			function clear () {
+				$('#message').val('').focus();
+			};
+		});
+	body
+		#chat
+			#container
+				#header
+					h1 Cloud Service for Collaborative Displays
+					#currentURL
+					#qrcode
+						-if (spVal && qrURL)
+							img(src='#{qrURL}',alt="qrcode")
+				#menu
+					p List of Active Users:
+					#usernames
+					#sessionmanager
+						p Active Session: </br>
+							#sessionname
+						#sessiondocs
+							p	Session Documents: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+								-if (!spVal)	
+									input(type='button', value='+')#doc-new
+							if(spVal)
+								#sessiondocslist(class='docsbackground')
+							else
+								#sessiondocslist
+				-if (!spVal)	
+					#content-nav
+						p
+							#nav1
+							#nav2
+								table
+									tr
+										td
+											input(type="button",value="Play")#play-shared 
+											input(type="button",value="Pause")#pause-shared
+										td
+											input(type='checkbox', value='Use Shared Display', disabled=true)#share-view 
+											label Share This Document
+				#content
+				#footer
+					p	Logged in as: #{User} 
+						a(href='/logout') logout

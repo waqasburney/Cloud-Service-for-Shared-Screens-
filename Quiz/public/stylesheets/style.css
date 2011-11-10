@@ -1,0 +1,27 @@
+#currentquestion {
+	background-color:#b0c4de;
+}
+
+.resultItem{
+	/* IE10 */ 
+	background-image: -ms-linear-gradient(top left, #D3F7C8 0%, #C2ECEF 100%);
+
+	/* Mozilla Firefox */ 
+	background-image: -moz-linear-gradient(top left, #D3F7C8 0%, #C2ECEF 100%);
+
+	/* Opera */ 
+	background-image: -o-linear-gradient(top left, #D3F7C8 0%, #C2ECEF 100%);
+
+	/* Webkit (Safari/Chrome 10) */ 
+	background-image: -webkit-gradient(linear, left top, right bottom, color-stop(0, #D3F7C8), color-stop(1, #C2ECEF));
+
+	/* Webkit (Chrome 11+) */ 
+	background-image: -webkit-linear-gradient(top left, #D3F7C8 0%, #C2ECEF 100%);
+
+	/* Proposed W3C Markup */ 
+	background-image: linear-gradient(top left, #D3F7C8 0%, #C2ECEF 100%);
+	border-radius: 15px;
+	padding-left:15px;
+}
+
+

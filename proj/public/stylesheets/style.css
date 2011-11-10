@@ -1,0 +1,177 @@
+table
+{
+	border-collapse:collapse;
+}
+table, td, th
+{
+	border:1px solid black;
+	padding:15px;
+}
+
+#usernames{
+	/* IE10 */ 
+	background-image: -ms-linear-gradient(bottom right, #787878 0%, #A8A8A8 100%);
+
+	/* Mozilla Firefox */ 
+	background-image: -moz-linear-gradient(bottom right, #787878 0%, #A8A8A8 100%);
+
+	/* Opera */ 
+	background-image: -o-linear-gradient(bottom right, #787878 0%, #A8A8A8 100%);
+
+	/* Webkit (Safari/Chrome 10) */ 
+	background-image: -webkit-gradient(linear, right bottom, left top, color-stop(0, #787878), color-stop(1, #A8A8A8));
+
+	/* Webkit (Chrome 11+) */ 
+	background-image: -webkit-linear-gradient(bottom right, #787878 0%, #A8A8A8 100%);
+
+	/* Proposed W3C Markup */ 
+	background-image: linear-gradient(bottom right, #787878 0%, #A8A8A8 100%);
+	border-radius: 15px;
+}
+
+.docsbackground{
+	/* IE10 */ 
+	background-image: -ms-linear-gradient(bottom right, #E8F1FF 0%, #C2C2C2 100%);
+
+	/* Mozilla Firefox */ 
+	background-image: -moz-linear-gradient(bottom right, #E8F1FF 0%, #C2C2C2 100%);
+
+	/* Opera */ 
+	background-image: -o-linear-gradient(bottom right, #E8F1FF 0%, #C2C2C2 100%);
+
+	/* Webkit (Safari/Chrome 10) */ 
+	background-image: -webkit-gradient(linear, right bottom, left top, color-stop(0, #E8F1FF), color-stop(1, #C2C2C2));
+
+	/* Webkit (Chrome 11+) */ 
+	background-image: -webkit-linear-gradient(bottom right, #E8F1FF 0%, #C2C2C2 100%);
+
+	/* Proposed W3C Markup */ 
+	background-image: linear-gradient(bottom right, #E8F1FF 0%, #C2C2C2 100%);
+	border-radius: 15px;
+}
+
+#chat,
+#username,
+#messages {
+  width: 200px;
+  height: 100px;
+}
+#chat {
+  position: relative;
+}
+#username {
+  position: absolute;
+  height: 410px;
+  z-index: 100;
+  left: 0;
+  top: 0;
+/*  background: #fff;
+  text-align: center;*/
+  width: 600px;
+  font: 15px Georgia;
+  color: #666;
+  display: block;
+}
+#username .wrap{
+/*  padding-top: 150px;*/
+}
+#username input {
+  border: 1px solid #ccc;
+/*  padding: 10px;*/
+}
+#username input:focus {
+  border-color: #999;
+  outline: 0;
+}
+#username #username-err {
+  color: #8b0000;
+  font-size: 12px;
+  visibility: hidden;
+}
+
+#MainContainer{
+  	width: 1600px;
+	height: 1150px;
+}
+
+.ServerContainer{
+  	width: 1600px;
+	height: 1150px;
+}
+
+.UserContainer{
+  	width: 1000px;
+	height: 800px;
+}
+
+#header {
+	width: 100%;
+	height: 10%;
+	border-bottom: 1px solid #EDE7E0;
+	background: #2B61B0 repeat-x bottom left;
+}
+
+#currentURL {
+	margin-bottom:0;
+	color:white;
+	position:absolute;
+    bottom:0;
+    left:0;
+	width: 400px;
+}
+
+h1{
+	width: 100%;	
+	margin-bottom:0;
+	color:white;
+}
+
+#qrcode{
+	position:fixed;
+	top:10px;
+	right:5px;
+}
+
+#menu{
+	background-color:#EEE;
+	width:20%;
+	height:85%;	
+	float:left;
+	overflow: auto;
+  	overflow-y: auto;		
+}
+
+#sessiondocslist{
+  	overflow: auto;
+  	overflow-x: hidden;
+  	overflow-y: auto;	
+}
+#content-nav{
+	background-color:white;
+	width:80%;
+	height:10%;
+	float:right;
+  	overflow-x: hidden;
+  	overflow-y: hidden;	
+}
+#content{
+	background-color:white;
+	width:80%;
+	height:75%;
+	float:left;
+  	overflow: auto;
+  	overflow-x: hidden;
+  	overflow-y: auto;	
+}
+
+#footer{
+	background-color: #DED6D4;
+	width: 100%;
+	height: 5%;	
+	clear:both;
+	text-align:center;
+}
+
+##doc-edit{
+	float: right;
+}
