@@ -4,9 +4,6 @@ Setup Instructions:
 1. Deploying on Mac OS X requires g++ or c++:
    Prior installation of Xcode will be needed
 
-Test
-Test 2
-Test 3
 
 2. Install Node.JS
 
